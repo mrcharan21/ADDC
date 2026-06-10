@@ -1,5 +1,6 @@
-import { ArrowLeft, Search, Download, Shield, Eye, FileText, Globe, Lock, UserMinus, XCircle } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, Search, Download, Shield } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { PaginationControls } from './PaginationControls';
 
 interface PrivilegedUser {
   id: string;
@@ -215,6 +216,8 @@ export function AllPrivilegedUsers({ onBack, initialFilter }: AllPrivilegedUsers
   const [filterMFA, setFilterMFA] = useState<string>('Enabled');
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [sortBy, setSortBy] = useState<string>('riskLevel');
+  const [currentPage, setCurrentPage] = useState(1);
+  const usersPerPage = 10;
 
   const filteredUsers = mockPrivilegedUsers
     .filter(user => {
@@ -247,6 +250,31 @@ export function AllPrivilegedUsers({ onBack, initialFilter }: AllPrivilegedUsers
       }
       return 0;
     });
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / usersPerPage));
+  const pageStartIndex = (currentPage - 1) * usersPerPage;
+  const pageEndIndex = pageStartIndex + usersPerPage;
+  const paginatedUsers = filteredUsers.slice(pageStartIndex, pageEndIndex);
+  const visibleStart = filteredUsers.length === 0 ? 0 : pageStartIndex + 1;
+  const visibleEnd = Math.min(pageEndIndex, filteredUsers.length);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    searchTerm,
+    filterPrivilegeType,
+    filterInternetAccess,
+    filterDepartment,
+    filterRisk,
+    filterMFA,
+    filterStatus,
+    sortBy,
+  ]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const getRiskBadgeColor = (risk: string) => {
     switch (risk) {
@@ -419,9 +447,9 @@ export function AllPrivilegedUsers({ onBack, initialFilter }: AllPrivilegedUsers
         </div>
 
         {/* Main Data Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div id="privileged-users-table" className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden scroll-mt-6">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full data-table">
               <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
@@ -434,7 +462,7 @@ export function AllPrivilegedUsers({ onBack, initialFilter }: AllPrivilegedUsers
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredUsers.map((user) => (
+                {paginatedUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -486,8 +514,14 @@ export function AllPrivilegedUsers({ onBack, initialFilter }: AllPrivilegedUsers
 
         {/* Results Summary */}
         <div className="mt-4 text-sm text-gray-600 text-center">
-          Showing {filteredUsers.length} of {mockPrivilegedUsers.length} privileged users
+          Showing {visibleStart}-{visibleEnd} of {filteredUsers.length} privileged users
         </div>
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          scrollTargetId="privileged-users-table"
+        />
       </main>
     </div>
   );

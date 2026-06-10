@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowLeft, Loader2, RefreshCw, Search, Shield } from 'lucide-react';
 import { API_ENDPOINTS, apiUrl } from '../api/config';
+import { PaginationControls } from './PaginationControls';
 import { ScrollToTopButton } from './ScrollToTopButton';
 
 type RiskBand = 'High' | 'Medium' | 'Low';
@@ -69,6 +70,8 @@ export function RiskScoresView({ initialBand, onBack, onUserClick }: RiskScoresV
   const [filterBand, setFilterBand] = useState<RiskBand | 'All'>(initialBand ?? 'All');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const usersPerPage = 10;
 
   const loadRiskUsers = useCallback(async () => {
     setLoading(true);
@@ -112,6 +115,22 @@ export function RiskScoresView({ initialBand, onBack, onUserClick }: RiskScoresV
       return matchesSearch && matchesBand;
     });
   }, [filterBand, searchTerm, users]);
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / usersPerPage));
+  const pageStartIndex = (currentPage - 1) * usersPerPage;
+  const pageEndIndex = pageStartIndex + usersPerPage;
+  const paginatedUsers = filteredUsers.slice(pageStartIndex, pageEndIndex);
+  const visibleStart = filteredUsers.length === 0 ? 0 : pageStartIndex + 1;
+  const visibleEnd = Math.min(pageEndIndex, filteredUsers.length);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterBand]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -182,13 +201,13 @@ export function RiskScoresView({ initialBand, onBack, onUserClick }: RiskScoresV
           </div>
 
           <div className="mt-4 text-sm text-gray-600">
-            Showing {filteredUsers.length} of {users.length} users
+            Showing {visibleStart}-{visibleEnd} of {filteredUsers.length} users
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div id="risk-scores-table" className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden scroll-mt-6">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full data-table">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -222,7 +241,7 @@ export function RiskScoresView({ initialBand, onBack, onUserClick }: RiskScoresV
                     </td>
                   </tr>
                 ) : (
-                  filteredUsers.map((user) => (
+                  paginatedUsers.map((user) => (
                     <tr
                       key={user.id}
                       className="hover:bg-gray-50 transition-colors cursor-pointer"
@@ -254,6 +273,12 @@ export function RiskScoresView({ initialBand, onBack, onUserClick }: RiskScoresV
             </table>
           </div>
         </div>
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          scrollTargetId="risk-scores-table"
+        />
       </main>
       <ScrollToTopButton />
     </div>

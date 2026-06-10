@@ -1,6 +1,7 @@
 import { ArrowLeft, Users, Search, Shield, Globe, Lock } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { API_ENDPOINTS, apiUrl } from '../api/config';
+import { PaginationControls } from './PaginationControls';
 import { ScrollToTopButton } from './ScrollToTopButton';
 
 interface Group {
@@ -83,6 +84,8 @@ export function GroupsView({ onBack, onGroupClick }: GroupsViewProps) {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const groupsPerPage = 10;
 
   const loadGroups = useCallback(async () => {
     setLoading(true);
@@ -121,6 +124,22 @@ export function GroupsView({ onBack, onGroupClick }: GroupsViewProps) {
     
     return matchesSearch && matchesType && matchesScope;
   });
+  const totalPages = Math.max(1, Math.ceil(filteredGroups.length / groupsPerPage));
+  const pageStartIndex = (currentPage - 1) * groupsPerPage;
+  const pageEndIndex = pageStartIndex + groupsPerPage;
+  const paginatedGroups = filteredGroups.slice(pageStartIndex, pageEndIndex);
+  const visibleStart = filteredGroups.length === 0 ? 0 : pageStartIndex + 1;
+  const visibleEnd = Math.min(pageEndIndex, filteredGroups.length);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterType, filterScope]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const securityGroups = groups.filter(g => g.type === 'Security').length;
   const distributionGroups = groups.filter(g => g.type === 'Distribution').length;
@@ -243,7 +262,7 @@ export function GroupsView({ onBack, onGroupClick }: GroupsViewProps) {
           </div>
           
           <div className="mt-4 text-sm text-gray-600">
-            Showing {filteredGroups.length} of {groups.length} groups
+            Showing {visibleStart}-{visibleEnd} of {filteredGroups.length} groups
           </div>
         </div>
 
@@ -269,9 +288,10 @@ export function GroupsView({ onBack, onGroupClick }: GroupsViewProps) {
 
         {/* Groups Table */}
         {!loading && !error && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
+        <>
+          <div id="groups-table" className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden scroll-mt-6">
+            <div className="overflow-x-auto">
+              <table className="w-full data-table">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Group Name</th>
@@ -286,7 +306,7 @@ export function GroupsView({ onBack, onGroupClick }: GroupsViewProps) {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredGroups.map((group) => (
+                {paginatedGroups.map((group) => (
                   <tr key={group.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -350,15 +370,22 @@ export function GroupsView({ onBack, onGroupClick }: GroupsViewProps) {
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
-          {filteredGroups.length === 0 && (
-            <div className="text-center py-12">
-              <Users className="mx-auto text-gray-400 mb-4" size={48} />
-              <p className="text-gray-600">No groups found matching your search</p>
+              </table>
             </div>
-          )}
-        </div>
+            {filteredGroups.length === 0 && (
+              <div className="text-center py-12">
+                <Users className="mx-auto text-gray-400 mb-4" size={48} />
+                <p className="text-gray-600">No groups found matching your search</p>
+              </div>
+            )}
+          </div>
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            scrollTargetId="groups-table"
+          />
+        </>
         )}
       </main>
       <ScrollToTopButton />

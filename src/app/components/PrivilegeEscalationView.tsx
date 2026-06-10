@@ -1,4 +1,4 @@
-import { ArrowLeft, Search, Download, TrendingUp, Users, Shield, Eye, AlertTriangle, ChevronDown, UserPlus } from 'lucide-react';
+import { ArrowLeft, Search, Download, TrendingUp, Users, AlertTriangle, ChevronDown, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 
 interface EscalationEvent {

@@ -1,5 +1,6 @@
-import { ArrowLeft, Search, Download, Users, Eye, Mail, Lock, UserMinus, XCircle } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, Search, Download, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { PaginationControls } from './PaginationControls';
 
 interface NormalUser {
   id: string;
@@ -203,6 +204,8 @@ export function AllNormalUsers({ onBack }: AllNormalUsersProps) {
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [filterAccountType, setFilterAccountType] = useState<string>('All');
   const [sortBy, setSortBy] = useState<string>('lastLogin');
+  const [currentPage, setCurrentPage] = useState(1);
+  const usersPerPage = 10;
 
   const filteredUsers = mockNormalUsers
     .filter(user => {
@@ -229,6 +232,22 @@ export function AllNormalUsers({ onBack }: AllNormalUsersProps) {
       }
       return 0;
     });
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / usersPerPage));
+  const pageStartIndex = (currentPage - 1) * usersPerPage;
+  const pageEndIndex = pageStartIndex + usersPerPage;
+  const paginatedUsers = filteredUsers.slice(pageStartIndex, pageEndIndex);
+  const visibleStart = filteredUsers.length === 0 ? 0 : pageStartIndex + 1;
+  const visibleEnd = Math.min(pageEndIndex, filteredUsers.length);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterDepartment, filterMFA, filterStatus, filterAccountType, sortBy]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const uniqueDepartments = Array.from(new Set(mockNormalUsers.map(u => u.department)));
 
@@ -349,9 +368,9 @@ export function AllNormalUsers({ onBack }: AllNormalUsersProps) {
         </div>
 
         {/* Main Data Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div id="normal-users-table" className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden scroll-mt-6">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full data-table">
               <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
@@ -364,7 +383,7 @@ export function AllNormalUsers({ onBack }: AllNormalUsersProps) {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredUsers.map((user) => (
+                {paginatedUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -411,8 +430,14 @@ export function AllNormalUsers({ onBack }: AllNormalUsersProps) {
 
         {/* Results Summary */}
         <div className="mt-4 text-sm text-gray-600 text-center">
-          Showing {filteredUsers.length} of {mockNormalUsers.length} normal users
+          Showing {visibleStart}-{visibleEnd} of {filteredUsers.length} normal users
         </div>
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          scrollTargetId="normal-users-table"
+        />
       </main>
     </div>
   );

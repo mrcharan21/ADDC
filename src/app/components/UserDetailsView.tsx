@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { API_ENDPOINTS, apiUrl } from "../api/config";
+import { PaginationControls } from "./PaginationControls";
 import { ScrollToTopButton } from "./ScrollToTopButton";
 
 interface User {
@@ -95,6 +96,8 @@ export function UserDetailsView({ onBack, onUserClick }: UserDetailsViewProps) {
   const [summary, setSummary] = useState<UsersSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const usersPerPage = 10;
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -135,6 +138,22 @@ export function UserDetailsView({ onBack, onUserClick }: UserDetailsViewProps) {
 
     return matchesSearch && matchesStatus && matchesAccountType;
   });
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / usersPerPage));
+  const pageStartIndex = (currentPage - 1) * usersPerPage;
+  const pageEndIndex = pageStartIndex + usersPerPage;
+  const paginatedUsers = filteredUsers.slice(pageStartIndex, pageEndIndex);
+  const visibleStart = filteredUsers.length === 0 ? 0 : pageStartIndex + 1;
+  const visibleEnd = Math.min(pageEndIndex, filteredUsers.length);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus, filterAccountType]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const activeUsers =
     summary?.active_users ?? users.filter((u) => u.status === "Active").length;
@@ -304,14 +323,26 @@ export function UserDetailsView({ onBack, onUserClick }: UserDetailsViewProps) {
           </div>
 
           <div className="mt-4 text-sm text-gray-600">
-            Showing {filteredUsers.length} of {users.length} users
+            Showing {visibleStart}-{visibleEnd} of {filteredUsers.length} users
           </div>
         </div>
 
         {/* Users Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div id="user-management-table" className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden scroll-mt-6">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full user-management-table">
+              <colgroup>
+                <col className="w-[25%]" />
+                <col className="w-[10%]" />
+                <col className="w-[8%]" />
+                <col className="w-[9%]" />
+                <col className="w-[10%]" />
+                <col className="w-[10%]" />
+                <col className="w-[6%]" />
+                <col className="w-[8%]" />
+                <col className="w-[7%]" />
+                <col className="w-[7%]" />
+              </colgroup>
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -363,37 +394,38 @@ export function UserDetailsView({ onBack, onUserClick }: UserDetailsViewProps) {
                     </td>
                   </tr>
                 ) : (
-                  filteredUsers.map((user) => (
+                  paginatedUsers.map((user) => (
                     <tr
                       key={user.id}
                       className="hover:bg-gray-50 transition-colors cursor-pointer"
                       onClick={() => onUserClick(user.username)}
                     >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
+                      <td className="px-6 py-4">
+                        <div className="flex min-w-0 items-center">
                           <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
                             <span className="text-blue-600 font-medium">
                               {user.fullName
                                 .split(" ")
                                 .map((n) => n[0])
+                                .slice(0, 2)
                                 .join("")}
                             </span>
                           </div>
-                          <div className="ml-4">
-                            <div className="font-medium text-gray-900">
+                          <div className="ml-3 min-w-0">
+                            <div className="truncate font-medium text-gray-900">
                               {user.fullName}
                             </div>
-                            <div className="text-sm text-gray-500 flex items-center gap-1">
+                            <div className="flex min-w-0 items-center gap-1 text-sm text-gray-500">
                               <Mail size={12} />
-                              {user.email}
+                              <span className="truncate">{user.email}</span>
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4">
                         <div className="flex items-center gap-1 text-sm text-gray-900">
                           <Building size={14} className="text-gray-400" />
-                          {user.department}
+                          <span className="truncate">{user.department}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -458,6 +490,12 @@ export function UserDetailsView({ onBack, onUserClick }: UserDetailsViewProps) {
             </table>
           </div>
         </div>
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          scrollTargetId="user-management-table"
+        />
         
       </main>
       <ScrollToTopButton />

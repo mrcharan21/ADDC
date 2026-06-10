@@ -1,4 +1,4 @@
-import { ArrowLeft, Search, Download, Monitor, LogIn, LogOut, Eye, ChevronDown, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Search, Download, Monitor, LogIn, LogOut, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 

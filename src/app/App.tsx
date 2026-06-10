@@ -408,7 +408,16 @@ export default function App() {
   }
 
   if (currentView === 'individualUserDetail') {
-    return <IndividualUserDetailView userId={selectedUserId} onBack={() => setCurrentView('users')} />;
+    return (
+      <IndividualUserDetailView
+        userId={selectedUserId}
+        onBack={() => setCurrentView('users')}
+        onGroupClick={(groupName) => {
+          setSelectedGroupId(groupName);
+          setCurrentView('groupDetail');
+        }}
+      />
+    );
   }
 
   if (currentView === 'criticalServers') {

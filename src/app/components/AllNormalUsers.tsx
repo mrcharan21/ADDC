@@ -199,7 +199,7 @@ interface AllNormalUsersProps {
 export function AllNormalUsers({ onBack }: AllNormalUsersProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDepartment, setFilterDepartment] = useState<string>('All');
-  const [filterMFA, setFilterMFA] = useState<string>('All');
+  const [filterMFA, setFilterMFA] = useState<string>('Enabled');
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [filterAccountType, setFilterAccountType] = useState<string>('All');
   const [sortBy, setSortBy] = useState<string>('lastLogin');
@@ -213,7 +213,7 @@ export function AllNormalUsers({ onBack }: AllNormalUsersProps) {
         user.email.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesDepartment = filterDepartment === 'All' || user.department === filterDepartment;
-      const matchesMFA = filterMFA === 'All' || user.mfaStatus === filterMFA;
+      const matchesMFA = user.mfaStatus === filterMFA;
       const matchesStatus = filterStatus === 'All' || user.accountStatus === filterStatus;
       const matchesAccountType = filterAccountType === 'All' || user.accountType === filterAccountType;
 
@@ -311,7 +311,6 @@ export function AllNormalUsers({ onBack }: AllNormalUsersProps) {
               onChange={(e) => setFilterMFA(e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="All">All MFA Status</option>
               <option value="Enabled">MFA Enabled</option>
               <option value="Disabled">MFA Disabled</option>
             </select>

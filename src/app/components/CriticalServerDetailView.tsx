@@ -1,4 +1,4 @@
-import { ArrowLeft, Server, Shield, AlertTriangle, CheckCircle, Cpu, MemoryStick, Database, Wifi, Calendar, Clock, User, MapPin, FileText, Activity, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Server, Shield, AlertTriangle, CheckCircle, Cpu, MemoryStick, Database, Calendar, Clock, User, MapPin, FileText, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
@@ -259,7 +259,7 @@ export function CriticalServerDetailView({ serverId, onBack }: CriticalServerDet
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-gray-600">Critical Groups</p>
@@ -278,23 +278,6 @@ export function CriticalServerDetailView({ serverId, onBack }: CriticalServerDet
             <p className="text-xs text-gray-500 mt-1">Last reboot: {server.lastReboot}</p>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-gray-600">Running Services</p>
-              <Activity className="text-blue-600" size={20} />
-            </div>
-            <p className="text-2xl font-semibold text-blue-600">{server.services}</p>
-            <p className="text-xs text-gray-500 mt-1">Active services</p>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-gray-600">Open Ports</p>
-              <Wifi className="text-purple-600" size={20} />
-            </div>
-            <p className="text-2xl font-semibold text-purple-600">{server.openPorts.length}</p>
-            <p className="text-xs text-gray-500 mt-1">Network ports</p>
-          </div>
         </div>
 
         {/* Tabs */}
@@ -426,17 +409,6 @@ export function CriticalServerDetailView({ serverId, onBack }: CriticalServerDet
                   </div>
                 </div>
 
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Network Configuration</h3>
-                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Open Ports:</span>
-                        <span className="text-sm font-medium text-gray-900 font-mono">{server.openPorts.join(', ')}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
             )}
 

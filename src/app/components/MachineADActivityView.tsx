@@ -167,7 +167,6 @@ export function MachineADActivityView({ onBack }: MachineADActivityViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filterActivityType, setFilterActivityType] = useState('All');
-  const [filterMachineType, setFilterMachineType] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
   const [sortBy, setSortBy] = useState<string>('timestamp');
 
@@ -179,10 +178,9 @@ export function MachineADActivityView({ onBack }: MachineADActivityViewProps) {
         activity.performedBy.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesActivityType = filterActivityType === 'All' || activity.activityType === filterActivityType;
-      const matchesMachineType = filterMachineType === 'All' || activity.machineType === filterMachineType;
       const matchesStatus = filterStatus === 'All' || activity.status === filterStatus;
       
-      return matchesSearch && matchesActivityType && matchesMachineType && matchesStatus;
+      return matchesSearch && matchesActivityType && matchesStatus;
     })
     .sort((a, b) => {
       if (sortBy === 'timestamp') {
@@ -322,7 +320,7 @@ export function MachineADActivityView({ onBack }: MachineADActivityViewProps) {
           
           {showFilters && (
             <div className="px-6 pb-6 border-t border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                 <select
                   value={filterActivityType}
                   onChange={(e) => setFilterActivityType(e.target.value)}
@@ -331,17 +329,6 @@ export function MachineADActivityView({ onBack }: MachineADActivityViewProps) {
                   <option value="All">All Activity Types</option>
                   <option value="Joined">Joined Only</option>
                   <option value="Exited">Exited Only</option>
-                </select>
-
-                <select
-                  value={filterMachineType}
-                  onChange={(e) => setFilterMachineType(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="All">All Machine Types</option>
-                  <option value="Desktop">Desktop</option>
-                  <option value="Laptop">Laptop</option>
-                  <option value="Server">Server</option>
                 </select>
 
                 <select
@@ -373,7 +360,6 @@ export function MachineADActivityView({ onBack }: MachineADActivityViewProps) {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Machine Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Activity</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th>
@@ -387,15 +373,6 @@ export function MachineADActivityView({ onBack }: MachineADActivityViewProps) {
                   <tr key={activity.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="font-medium text-gray-900">{activity.machineName}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        activity.machineType === 'Server' ? 'bg-blue-100 text-blue-800' :
-                        activity.machineType === 'Laptop' ? 'bg-purple-100 text-purple-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {activity.machineType}
-                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">

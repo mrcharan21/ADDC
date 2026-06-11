@@ -1,5 +1,5 @@
-import { ArrowLeft, Search, Download, Eye, KeyRound, Clock, XCircle, FileText, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, Search, Download, Clock, ChevronDown, Eye, ShieldCheck, ShieldX } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 interface User {
   id: string;
@@ -167,6 +167,8 @@ interface AllPasswordNeverExpiresUsersProps {
 export function AllPasswordNeverExpiresUsers({ onBack, initialFilter }: AllPasswordNeverExpiresUsersProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [currentPage, setCurrentPage] = useState(1);
   const [filterAccountType, setFilterAccountType] = useState('All');
   const [filterPrivilegeLevel, setFilterPrivilegeLevel] = useState(
     initialFilter === 'privileged' ? 'Admin' : 'All'
@@ -178,6 +180,9 @@ export function AllPasswordNeverExpiresUsers({ onBack, initialFilter }: AllPassw
     initialFilter === 'highrisk' ? '>365 days' : 'All'
   );
   const [sortBy, setSortBy] = useState<string>('passwordAgeDays');
+  const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
+  const usersPerPage = 5;
+  const tableTopRef = useRef<HTMLDivElement | null>(null);
 
   // Apply initial filter
   useState(() => {
@@ -186,7 +191,16 @@ export function AllPasswordNeverExpiresUsers({ onBack, initialFilter }: AllPassw
     }
   });
 
-  const filteredUsers = mockUsers
+  const updateExceptionApproval = (userId: string, approved: boolean) => {
+    setUsers((currentUsers) =>
+      currentUsers.map((user) =>
+        user.id === userId ? { ...user, exceptionApproved: approved } : user
+      )
+    );
+    setOpenActionMenuId(null);
+  };
+
+  const filteredUsers = users
     .filter(user => {
       const matchesSearch = 
         user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -225,6 +239,13 @@ export function AllPasswordNeverExpiresUsers({ onBack, initialFilter }: AllPassw
       return 0;
     });
 
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / usersPerPage));
+  const pageStartIndex = (currentPage - 1) * usersPerPage;
+  const pageEndIndex = pageStartIndex + usersPerPage;
+  const paginatedUsers = filteredUsers.slice(pageStartIndex, pageEndIndex);
+  const visibleStart = filteredUsers.length === 0 ? 0 : pageStartIndex + 1;
+  const visibleEnd = Math.min(pageEndIndex, filteredUsers.length);
+
   const getRiskBadgeColor = (risk: string) => {
     switch (risk) {
       case 'High': return 'bg-red-100 text-red-800 border-red-200';
@@ -241,7 +262,36 @@ export function AllPasswordNeverExpiresUsers({ onBack, initialFilter }: AllPassw
     return 'text-green-700';
   };
 
-  const uniqueOUs = Array.from(new Set(mockUsers.map(u => u.ou)));
+  const getExceptionApprovalColor = (approved: boolean) => {
+    return approved
+      ? 'px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 border border-green-200'
+      : 'px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800 border border-red-200';
+  };
+
+  const uniqueOUs = Array.from(new Set(users.map(u => u.ou)));
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setOpenActionMenuId(null);
+  }, [searchTerm, filterAccountType, filterPrivilegeLevel, filterOU, filterStatus, filterException, filterPasswordAge, sortBy]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setOpenActionMenuId(null);
+  }, [currentPage]);
+
+  useEffect(() => {
+    if (filteredUsers.length === 0) return;
+    tableTopRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  }, [currentPage]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -398,10 +448,26 @@ export function AllPasswordNeverExpiresUsers({ onBack, initialFilter }: AllPassw
         </div>
 
         {/* Main Data Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-8">
+        <div
+          id="password-never-expires-table"
+          ref={tableTopRef}
+          className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-visible mb-8 scroll-mt-6"
+        >
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <table className="w-full min-w-[1280px]">
+              <colgroup>
+                <col className="w-[14%]" />
+                <col className="w-[18%]" />
+                <col className="w-[14%]" />
+                <col className="w-[12%]" />
+                <col className="w-[10%]" />
+                <col className="w-[14%]" />
+                <col className="w-[10%]" />
+                <col className="w-[12%]" />
+                <col className="w-[8%]" />
+                <col className="w-[8%]" />
+              </colgroup>
+              <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Display Name</th>
@@ -410,11 +476,13 @@ export function AllPasswordNeverExpiresUsers({ onBack, initialFilter }: AllPassw
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">OU</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Password Last Set</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age (Days)</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Exception Approval</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredUsers.map((user) => (
+                {paginatedUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="font-medium text-gray-900">{user.username}</div>
@@ -447,12 +515,49 @@ export function AllPasswordNeverExpiresUsers({ onBack, initialFilter }: AllPassw
                         {user.passwordAgeDays} days
                       </span>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <span className={getExceptionApprovalColor(user.exceptionApproved)}>
+                        {user.exceptionApproved ? 'Approved' : 'Not Approved'}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                         user.accountStatus === 'Enabled' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                       }`}>
                         {user.accountStatus}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm relative">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOpenActionMenuId((current) => (current === user.id ? null : user.id))
+                        }
+                        className="inline-flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                        aria-label="Open exception actions"
+                      >
+                        <Eye size={16} />
+                      </button>
+                      {openActionMenuId === user.id && (
+                        <div className="absolute right-6 top-full mt-2 w-48 rounded-xl border border-gray-200 bg-white shadow-lg z-20 overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => updateExceptionApproval(user.id, true)}
+                            className="w-full px-4 py-3 flex items-center gap-2 text-sm text-left text-green-700 hover:bg-green-50 transition-colors"
+                          >
+                            <ShieldCheck size={16} />
+                            Approve Exception
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateExceptionApproval(user.id, false)}
+                            className="w-full px-4 py-3 flex items-center gap-2 text-sm text-left text-red-700 hover:bg-red-50 transition-colors"
+                          >
+                            <ShieldX size={16} />
+                            Not Approve
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -461,9 +566,74 @@ export function AllPasswordNeverExpiresUsers({ onBack, initialFilter }: AllPassw
           </div>
         </div>
 
+        {filteredUsers.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-6 py-4 mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-gray-600">
+              Showing {visibleStart}-{visibleEnd} of {filteredUsers.length} users
+              {searchTerm ? ` matching "${searchTerm}"` : ''}
+            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Previous
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => {
+                  const isActive = page === currentPage;
+                  const isEdge = page === 1 || page === totalPages;
+                  const isNearCurrent = Math.abs(page - currentPage) <= 1;
+
+                  if (!isEdge && !isNearCurrent) {
+                    const shouldShowEllipsis =
+                      (page === currentPage - 2 && page > 2) ||
+                      (page === currentPage + 2 && page < totalPages - 1);
+
+                    if (shouldShowEllipsis) {
+                      return (
+                        <span key={`ellipsis-${page}`} className="px-2 text-gray-400">
+                          ...
+                        </span>
+                      );
+                    }
+
+                    return null;
+                  }
+
+                  return (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                      className={`min-w-[2.25rem] px-3 py-2 text-sm rounded-lg border transition-colors ${
+                        isActive
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Results Summary */}
         <div className="mt-4 text-sm text-gray-600 text-center">
-          Showing {filteredUsers.length} of {mockUsers.length} users with password never expires
+          Showing {filteredUsers.length} of {users.length} users with password never expires
         </div>
       </main>
     </div>

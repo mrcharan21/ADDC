@@ -1,9 +1,10 @@
 import { ArrowLeft, Users, Mail, Calendar, Shield, UserCheck, Building, Lock, Globe } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { API_ENDPOINTS, apiUrl } from '../api/config';
 
 interface User {
   id: string;
+  username?: string;
   name: string;
   email: string;
   department: string;
@@ -33,6 +34,7 @@ interface GroupDetailApiResponse {
 interface GroupDetailViewProps {
   groupId: string;
   onBack: () => void;
+  onUserClick?: (userId: string) => void;
 }
 
 function normalizeGroupType(value: unknown): GroupInfo['type'] {
@@ -67,10 +69,12 @@ function extractMembers(payload: any, groupPayload: any): any[] {
 }
 
 function mapApiUser(user: any, index: number): User {
-  const name = user.name || user.display_name || user.full_name || user.username || user.sam_account_name || `Member ${index + 1}`;
+  const username = user.username || user.sam_account_name || user.user_name || "";
+  const name = user.name || user.display_name || user.full_name || username || `Member ${index + 1}`;
 
   return {
-    id: String(user.id || user.user_id || user.sid || user.username || user.sam_account_name || name),
+    id: String(user.id || user.user_id || user.sid || username || name),
+    username: username || undefined,
     name,
     email: user.email || user.mail || user.user_principal_name || 'Not configured',
     department: user.department || 'Unknown',
@@ -102,12 +106,15 @@ function mapApiGroup(payload: any, groupName: string): GroupDetailApiResponse {
   };
 }
 
-export function GroupDetailView({ groupId, onBack }: GroupDetailViewProps) {
+export function GroupDetailView({ groupId, onBack, onUserClick }: GroupDetailViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [groupInfo, setGroupInfo] = useState<GroupInfo | null>(null);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const membersPerPage = 10;
+  const membersTableRef = useRef<HTMLDivElement | null>(null);
 
   const loadGroupDetail = useCallback(async () => {
     setLoading(true);
@@ -143,9 +150,33 @@ export function GroupDetailView({ groupId, onBack }: GroupDetailViewProps) {
     user.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / membersPerPage));
+  const pageStartIndex = (currentPage - 1) * membersPerPage;
+  const pageEndIndex = pageStartIndex + membersPerPage;
+  const paginatedUsers = filteredUsers.slice(pageStartIndex, pageEndIndex);
+  const visibleStart = filteredUsers.length === 0 ? 0 : pageStartIndex + 1;
+  const visibleEnd = Math.min(pageEndIndex, filteredUsers.length);
 
   const activeUsers = filteredUsers.filter(u => u.accountStatus === 'Active').length;
   const disabledUsers = filteredUsers.filter(u => u.accountStatus === 'Disabled').length;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, groupId]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    if (loading) return;
+    membersTableRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  }, [currentPage, loading]);
 
   if (loading) {
     return (
@@ -292,18 +323,37 @@ export function GroupDetailView({ groupId, onBack }: GroupDetailViewProps) {
             />
             <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
           </div>
-          <div className="mt-2 text-sm text-gray-600">
-            Showing {filteredUsers.length} of {allUsers.length} members
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-sm text-gray-600">
+            <p>
+              Showing {visibleStart}-{visibleEnd} of {filteredUsers.length} members
+              {searchTerm ? ` matching "${searchTerm}"` : ''}
+            </p>
+            <p>{allUsers.length} total members in this group</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Group Members</h2>
+        <div ref={membersTableRef} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden scroll-mt-6">
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Group Members</h2>
+              <p className="text-sm text-gray-500">Paginated member directory for the selected group</p>
+            </div>
+            <div className="text-sm text-gray-500">
+              Page {currentPage} of {totalPages}
+            </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+            <table className="w-full min-w-[1100px]">
+              <colgroup>
+                <col className="w-[22%]" />
+                <col className="w-[22%]" />
+                <col className="w-[14%]" />
+                <col className="w-[16%]" />
+                <col className="w-[10%]" />
+                <col className="w-[8%]" />
+                <col className="w-[8%]" />
+              </colgroup>
+              <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
@@ -315,22 +365,31 @@ export function GroupDetailView({ groupId, onBack }: GroupDetailViewProps) {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredUsers.map((user) => (
+                {paginatedUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                          <span className="text-blue-600 font-semibold">
+                        <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center border border-blue-200">
+                          <span className="text-blue-700 font-semibold text-sm">
                             {user.name.split(' ').map(n => n[0]).join('')}
                           </span>
                         </div>
                         <div className="ml-4">
-                          <div className="font-medium text-gray-900">{user.name}</div>
+                          <button
+                            type="button"
+                            onClick={() => onUserClick?.(user.username || user.id)}
+                            className={`text-left font-medium text-gray-900 ${
+                              onUserClick ? 'hover:text-blue-600 hover:underline cursor-pointer' : ''
+                            }`}
+                          >
+                            {user.name}
+                          </button>
+                          <div className="text-xs text-gray-500">{user.accountStatus === 'Active' ? 'Enabled account' : 'Disabled account'}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center text-sm text-gray-900">
+                      <div className="flex items-center text-sm text-gray-900 break-all">
                         <Mail size={14} className="text-gray-400 mr-2" />
                         {user.email}
                       </div>
@@ -341,14 +400,16 @@ export function GroupDetailView({ groupId, onBack }: GroupDetailViewProps) {
                         {user.department}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {user.title}
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900 max-w-[260px] truncate" title={user.title}>
+                        {user.title}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full border ${
                         user.accountStatus === 'Active'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
+                          ? 'bg-green-50 text-green-700 border-green-200'
+                          : 'bg-red-50 text-red-700 border-red-200'
                       }`}>
                         {user.accountStatus}
                       </span>
@@ -365,10 +426,66 @@ export function GroupDetailView({ groupId, onBack }: GroupDetailViewProps) {
             </table>
           </div>
 
-          {filteredUsers.length === 0 && (
+          {filteredUsers.length === 0 ? (
             <div className="text-center py-12">
               <Users className="mx-auto text-gray-400 mb-4" size={48} />
               <p className="text-gray-600">No members found matching your search</p>
+            </div>
+          ) : (
+            <div className="px-6 py-4 border-t border-gray-200 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-gray-600">
+                Page {currentPage} of {totalPages}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Previous
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => {
+                    const isActive = page === currentPage;
+                    const isEdge = page === 1 || page === totalPages;
+                    const isNearCurrent = Math.abs(page - currentPage) <= 1;
+
+                    if (!isEdge && !isNearCurrent) {
+                      const hasGapBefore = page > 2 && page === currentPage - 2;
+                      const hasGapAfter = page < totalPages - 1 && page === currentPage + 2;
+                      if (hasGapBefore || hasGapAfter) {
+                        return (
+                          <span key={`ellipsis-${page}`} className="px-2 text-gray-400">
+                            ...
+                          </span>
+                        );
+                      }
+                      return null;
+                    }
+
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`min-w-[2.25rem] px-3 py-2 text-sm rounded-lg border transition-colors ${
+                          isActive
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next
+                </button>
+              </div>
             </div>
           )}
         </div>

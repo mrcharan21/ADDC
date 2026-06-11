@@ -79,6 +79,7 @@ export default function App() {
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('1');
   const [selectedCriticalServerId, setSelectedCriticalServerId] = useState<string>('1');
   const [selectedCriticalEndpointId, setSelectedCriticalEndpointId] = useState<string>('1');
+  const [userDetailBackView, setUserDetailBackView] = useState<'users' | 'groupDetail'>('users');
 
   const loadDashboardStats = useCallback(async (signal?: AbortSignal) => {
     setDashboardStatsLoading(true);
@@ -132,6 +133,7 @@ export default function App() {
       onBack={() => handleBackToDashboard()} 
       onUserClick={(userId) => {
         setSelectedUserId(userId);
+        setUserDetailBackView('users');
         setCurrentView('individualUserDetail');
       }}
     />;
@@ -144,6 +146,7 @@ export default function App() {
         onBack={() => handleBackToDashboard()}
         onUserClick={(userId) => {
           setSelectedUserId(userId);
+          setUserDetailBackView('users');
           setCurrentView('individualUserDetail');
         }}
       />
@@ -178,6 +181,11 @@ export default function App() {
     return <GroupDetailView 
       groupId={selectedGroupId} 
       onBack={() => setCurrentView('groups')} 
+      onUserClick={(userId) => {
+        setSelectedUserId(userId);
+        setUserDetailBackView('groupDetail');
+        setCurrentView('individualUserDetail');
+      }}
     />;
   }
 
@@ -411,7 +419,7 @@ export default function App() {
     return (
       <IndividualUserDetailView
         userId={selectedUserId}
-        onBack={() => setCurrentView('users')}
+        onBack={() => setCurrentView(userDetailBackView)}
         onGroupClick={(groupName) => {
           setSelectedGroupId(groupName);
           setCurrentView('groupDetail');

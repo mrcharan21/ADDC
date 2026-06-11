@@ -47,9 +47,6 @@ interface UserDetail {
   distinguishedName: string;
   userPrincipalName: string;
   sid: string;
-  homeDirectory: string;
-  profilePath: string;
-  scriptPath: string;
   accountExpires: string;
   passwordNeverExpires: boolean;
   cannotChangePassword: boolean;
@@ -124,6 +121,10 @@ function normalizePrivilege(value?: string, groups: GroupMembership[] = []): Use
 function normalizeDateTime(value?: string | null): string {
   if (!value) return "";
   return value.includes("T") ? value : value.replace(" ", "T");
+}
+
+function normalizeLookupValue(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function resolveBoolean(value: unknown, fallback = false): boolean {
@@ -202,8 +203,43 @@ function normalizeActivityLog(data: any, username: string): ActivityLogEntry[] {
 }
 
 async function fetchUserDetailsFromAPI(userId: string): Promise<ApiResponse> {
-  const username = userId;
+  const resolveUsername = async (): Promise<string> => {
+    const fallback = userId.trim();
 
+    try {
+      const response = await fetch(apiUrl(API_ENDPOINTS.users));
+      if (!response.ok) return fallback;
+
+      const data = await response.json();
+      const users = Array.isArray(data.users) ? data.users : [];
+      const target = normalizeLookupValue(fallback);
+
+      const matchedUser = users.find((user: any) => {
+        const candidates = [
+          user.username,
+          user.sam_account_name,
+          user.display_name,
+          user.full_name,
+          user.name,
+        ]
+          .filter(Boolean)
+          .map((value) => normalizeLookupValue(String(value)));
+
+        return candidates.includes(target);
+      });
+
+      return (
+        matchedUser?.username ||
+        matchedUser?.sam_account_name ||
+        matchedUser?.display_name ||
+        fallback
+      );
+    } catch {
+      return fallback;
+    }
+  };
+
+  const username = await resolveUsername();
   const response = await fetch(apiUrl(API_ENDPOINTS.user(username)));
 
   if (!response.ok) {
@@ -258,9 +294,6 @@ async function fetchUserDetailsFromAPI(userId: string): Promise<ApiResponse> {
       distinguishedName: adSettings.distinguished_name || "Not configured",
       userPrincipalName: adSettings.user_principal_name || basic.email || `${username}@company.local`,
       sid: adSettings.sid || "Not configured",
-      homeDirectory: adSettings.home_directory || "Not configured",
-      profilePath: adSettings.profile_path || "Not configured",
-      scriptPath: adSettings.login_script || "",
       accountExpires: accountSummary.expires || "Never",
       passwordNeverExpires: !accountSecurity.password_expires,
       cannotChangePassword: !resolveBoolean(flags.user_can_change_password, true),
@@ -1096,35 +1129,6 @@ export function IndividualUserDetailView({
                 </div>
               </div>
                   
-              <div>
-                <h4 className="font-semibold text-gray-900 mb-3">
-                  Profile Settings
-                </h4>
-                <div className="space-y-3">
-                  {isAdmin && (
-                    <>
-                      <div>
-                        <p className="text-xs text-gray-500">Home Directory</p>
-                        <p className="text-sm text-gray-900 mt-1 font-mono">
-                          {userDetail.homeDirectory}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Profile Path</p>
-                        <p className="text-sm text-gray-900 mt-1 font-mono">
-                          {userDetail.profilePath}
-                        </p>
-                      </div>
-                    </>
-                  )}
-                  <div>
-                    <p className="text-xs text-gray-500">Login Script</p>
-                    <p className="text-sm text-gray-900 mt-1 font-mono">
-                      {userDetail.scriptPath || "Not configured"}
-                    </p>
-                  </div>
-                </div>
-              </div>
             </div>
           )}
 

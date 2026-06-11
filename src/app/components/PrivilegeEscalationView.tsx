@@ -1,5 +1,5 @@
-import { ArrowLeft, Search, Download, TrendingUp, Users, AlertTriangle, ChevronDown, UserPlus } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, Search, Download, TrendingUp, Users, AlertTriangle, ChevronDown, UserPlus, Eye, ShieldCheck, ShieldX } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 interface EscalationEvent {
   id: string;
@@ -166,12 +166,26 @@ interface PrivilegeEscalationViewProps {
 export function PrivilegeEscalationView({ onBack }: PrivilegeEscalationViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [events, setEvents] = useState(mockEscalationEvents);
+  const [currentPage, setCurrentPage] = useState(1);
   const [filterTargetType, setFilterTargetType] = useState('All');
   const [filterRiskLevel, setFilterRiskLevel] = useState('All');
   const [filterApprovalStatus, setFilterApprovalStatus] = useState('All');
   const [sortBy, setSortBy] = useState<string>('timestamp');
+  const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
+  const eventsPerPage = 10;
+  const tableTopRef = useRef<HTMLDivElement | null>(null);
 
-  const filteredEvents = mockEscalationEvents
+  const updateApproval = (eventId: string, approved: boolean) => {
+    setEvents((currentEvents) =>
+      currentEvents.map((event) =>
+        event.id === eventId ? { ...event, approved } : event
+      )
+    );
+    setOpenActionMenuId(null);
+  };
+
+  const filteredEvents = events
     .filter(event => {
       const matchesSearch =
         event.targetName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -195,6 +209,12 @@ export function PrivilegeEscalationView({ onBack }: PrivilegeEscalationViewProps
       }
       return 0;
     });
+  const totalPages = Math.max(1, Math.ceil(filteredEvents.length / eventsPerPage));
+  const pageStartIndex = (currentPage - 1) * eventsPerPage;
+  const pageEndIndex = pageStartIndex + eventsPerPage;
+  const paginatedEvents = filteredEvents.slice(pageStartIndex, pageEndIndex);
+  const visibleStart = filteredEvents.length === 0 ? 0 : pageStartIndex + 1;
+  const visibleEnd = Math.min(pageEndIndex, filteredEvents.length);
 
   const getRiskBadgeColor = (risk: string) => {
     switch (risk) {
@@ -206,10 +226,33 @@ export function PrivilegeEscalationView({ onBack }: PrivilegeEscalationViewProps
     }
   };
 
-  const criticalCount = mockEscalationEvents.filter(e => e.riskLevel === 'Critical').length;
-  const unapprovedCount = mockEscalationEvents.filter(e => !e.approved).length;
-  const userEscalations = mockEscalationEvents.filter(e => e.targetType === 'User').length;
-  const groupEscalations = mockEscalationEvents.filter(e => e.targetType === 'Group').length;
+  const criticalCount = events.filter(e => e.riskLevel === 'Critical').length;
+  const unapprovedCount = events.filter(e => !e.approved).length;
+  const userEscalations = events.filter(e => e.targetType === 'User').length;
+  const groupEscalations = events.filter(e => e.targetType === 'Group').length;
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setOpenActionMenuId(null);
+  }, [searchTerm, filterTargetType, filterRiskLevel, filterApprovalStatus, sortBy]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setOpenActionMenuId(null);
+  }, [currentPage]);
+
+  useEffect(() => {
+    if (filteredEvents.length === 0) return;
+    tableTopRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  }, [currentPage, filteredEvents.length]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -269,7 +312,7 @@ export function PrivilegeEscalationView({ onBack }: PrivilegeEscalationViewProps
               <p className="text-sm text-gray-600">Total Events</p>
               <TrendingUp className="text-blue-600" size={20} />
             </div>
-            <p className="text-2xl font-semibold text-gray-900">{mockEscalationEvents.length}</p>
+            <p className="text-2xl font-semibold text-gray-900">{events.length}</p>
           </div>
 
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
@@ -373,7 +416,7 @@ export function PrivilegeEscalationView({ onBack }: PrivilegeEscalationViewProps
         </div>
 
         {/* Main Data Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-8">
+        <div ref={tableTopRef} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-visible mb-8 scroll-mt-6">
           <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
             <table className="w-full min-w-max">
               <thead className="bg-gray-50 border-b border-gray-200">
@@ -383,13 +426,16 @@ export function PrivilegeEscalationView({ onBack }: PrivilegeEscalationViewProps
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Escalation</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Previous</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">New Privilege</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Risk Level</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Approved</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Timestamp</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Changed By</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">OU</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Action</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredEvents.map((event) => (
+                {paginatedEvents.map((event) => (
                   <tr key={event.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
@@ -418,6 +464,18 @@ export function PrivilegeEscalationView({ onBack }: PrivilegeEscalationViewProps
                         {event.newPrivilege}
                       </span>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full border ${getRiskBadgeColor(event.riskLevel)}`}>
+                        {event.riskLevel}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        event.approved ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'
+                      }`}>
+                        {event.approved ? 'Approved' : 'Not Approved'}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {event.timestamp}
                     </td>
@@ -427,6 +485,38 @@ export function PrivilegeEscalationView({ onBack }: PrivilegeEscalationViewProps
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {event.ou}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm relative">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOpenActionMenuId((current) => (current === event.id ? null : event.id))
+                        }
+                        className="inline-flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                        aria-label="Open approval actions"
+                      >
+                        <Eye size={16} />
+                      </button>
+                      {openActionMenuId === event.id && (
+                        <div className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-gray-200 bg-white shadow-lg z-20 overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => updateApproval(event.id, true)}
+                            className="w-full px-4 py-3 flex items-center gap-2 text-sm text-left text-green-700 hover:bg-green-50 transition-colors"
+                          >
+                            <ShieldCheck size={16} />
+                            Approve
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateApproval(event.id, false)}
+                            className="w-full px-4 py-3 flex items-center gap-2 text-sm text-left text-red-700 hover:bg-red-50 transition-colors"
+                          >
+                            <ShieldX size={16} />
+                            Don't Approve
+                          </button>
+                        </div>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -434,9 +524,73 @@ export function PrivilegeEscalationView({ onBack }: PrivilegeEscalationViewProps
           </div>
         </div>
 
+        {filteredEvents.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-6 py-4 mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-gray-600">
+              Showing {visibleStart}-{visibleEnd} of {filteredEvents.length} events
+            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Previous
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => {
+                  const isActive = page === currentPage;
+                  const isEdge = page === 1 || page === totalPages;
+                  const isNearCurrent = Math.abs(page - currentPage) <= 1;
+
+                  if (!isEdge && !isNearCurrent) {
+                    const shouldShowEllipsis =
+                      (page === currentPage - 2 && page > 2) ||
+                      (page === currentPage + 2 && page < totalPages - 1);
+
+                    if (shouldShowEllipsis) {
+                      return (
+                        <span key={`ellipsis-${page}`} className="px-2 text-gray-400">
+                          ...
+                        </span>
+                      );
+                    }
+
+                    return null;
+                  }
+
+                  return (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                      className={`min-w-[2.25rem] px-3 py-2 text-sm rounded-lg border transition-colors ${
+                        isActive
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Results Summary */}
         <div className="mt-4 text-sm text-gray-600 text-center">
-          Showing {filteredEvents.length} of {mockEscalationEvents.length} privilege escalation events
+          Showing {filteredEvents.length} of {events.length} privilege escalation events
         </div>
       </main>
     </div>
